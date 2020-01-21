@@ -1,0 +1,19 @@
+{
+  "name": "0.1-git-gitflow",
+  "version": "1.1.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"Tests executed\" && exit 0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "http://bitbucket.viavarejo.com.br/scm/aw/0.1-git-gitflow.git"
+  },
+  "author": "Jonathan Nagayoshi",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.17.1"
+  }
+}

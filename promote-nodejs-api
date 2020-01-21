@@ -1,0 +1,99 @@
+/*
+env.BRANCH_ANEM
+env.TARGET_ENV
+env.VERSION
+ */
+Convair {
+    selectedAgent = "linux"
+
+    variables = [
+            NO_CHECKOUT        : true,
+            OPENSHIFT_APISERVER: "https://192.168.1.53:8443",
+            OPENSHIFT_REGISTRY : "172.30.1.1:5000"
+    ]
+
+    selectedStages = [
+            CheckoutSCM      : [
+                    shouldRun: { true },
+                    run      : {
+                        dir("app_${env.BUILD_NUMBER}") {
+                            git branch: env.BRANCH_NAME, credentialsId: 'bitbucket-credentials',
+                                    url: "http://bitbucket.viavarejo.com.br/scm/aw/7700356123-nodejs-api.git"
+                            sh "ls -l"
+                            sh "pwd"
+                        }
+                    }
+            ],
+            TagImages        : [
+                    shouldRun: { true },
+                    run      : {
+                        def registryAddress = env.OPENSHIFT_REGISTRY
+                        withCredentials([usernamePassword(credentialsId: "openshift-registry-credentials", passwordVariable: "REGISTRY_PASSWORD",
+                                usernameVariable: "REGISTRY_USERNAME")]) {
+                            sh "docker login -u ${REGISTRY_USERNAME} -p ${REGISTRY_PASSWORD} ${registryAddress}"
+                            def sourceNamespace = "workshop-sit"
+                            def targetNamespace = "workshop-${env.TARGET_ENV}"
+                            def application = "nodejs-api"
+                            def sourceImage = "${registryAddress}/${sourceNamespace}/${application.toLowerCase()}:${env.VERSION}"
+                            def targetImage = "${registryAddress}/${targetNamespace}/${application.toLowerCase()}:${env.VERSION}"
+                            def targetLatest = "${registryAddress}/${targetNamespace}/${application.toLowerCase()}:latest"
+                            sh "docker pull ${sourceImage}"
+                            sh "docker tag ${sourceImage} ${targetImage}"
+                            sh "docker tag ${sourceImage} ${targetLatest}"
+                            sh "docker push ${targetImage}"
+                            sh "docker push ${targetLatest}"
+                            sh "docker rmi ${sourceImage} || true"
+                            sh "docker rmi ${targetImage} || true"
+                            sh "docker rmi ${targetLatest} || true"
+                        }
+                    }
+            ],
+            KustomizeSetImage: [
+                    shouldRun: { true },
+                    run      : {
+                        dir("app_${env.BUILD_NUMBER}") {
+                            def env_folder = env.TARGET_ENV != 'sit' ? "overlays/${env.TARGET_ENV}" : 'base'
+                            dir("kustomize/${env_folder}") {
+                                    def sourceImageWithoutTag = "172.30.1.1:5000/workshop-sit/nodejs-api"
+                                    def targetImage = "172.30.1.1:5000/workshop-${env.TARGET_ENV}/nodejs-api:${env.VERSION}"
+                                    sh "kustomize edit set image ${sourceImageWithoutTag}=${targetImage}"
+                            }
+                        }
+                    },
+                    image    : "sonikro/openshift-cli:latest",
+                    imageArgs: "-u root"
+            ],
+            KustomizeCommit  : [
+                    shouldRun: { true },
+                    run      : {
+                        dir("app_${env.BUILD_NUMBER}") {
+                            withCredentials([usernamePassword(credentialsId: 'bitbucket-credentials', passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
+                                sh "git config --global user.email 'alm.jenkins@viavarejo.com.br'"
+                                sh "git config --global user.name 'Jenkins'"
+                                sh "git add kustomize"
+                                sh "git commit --no-verify -m '${env.VERSION} Kustomize Image Update [skip ci]' || true"
+                                sh "git push http://${GIT_USERNAME}:${GIT_PASSWORD}@bitbucket.viavarejo.com.br/scm/aw/7700356123-nodejs-api.git HEAD:${env.BRANCH_NAME}"
+                            }
+                        }
+                    }
+            ],
+            KustomizeDeploy  : [
+                    shouldRun: { true },
+                    run      : {
+                        dir("app_${env.BUILD_NUMBER}") {
+                            def kustomizePath = env.TARGET_ENV == 'sit' ? "kustomize/base" : "kustomize/overlays/${env.TARGET_ENV}"
+                            sh "kustomize build ${kustomizePath} > deploy.yaml"
+                            sh "cat deploy.yaml"
+                            withCredentials([usernamePassword(credentialsId: "openshift-registry-credentials", passwordVariable: 'PASSWORD', usernameVariable: 'USERNAME')]) {
+                                sh "oc login ${env.OPENSHIFT_APISERVER} --token ${PASSWORD} --insecure-skip-tls-verify"
+                            }
+                            sh "oc apply -f deploy.yaml -n workshop-${env.TARGET_ENV}"
+                        }
+
+                    },
+                    image    : "sonikro/openshift-cli:latest",
+                    imageArgs: "-u root"
+            ]
+
+    ]
+}

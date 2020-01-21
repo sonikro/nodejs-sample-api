@@ -1,0 +1,13 @@
+commonLabels:
+  app: nodejs-api
+
+crds:
+  - openshift-deploymentconfig.json
+  - openshift-route.json
+
+resources:
+  - deployment.yaml
+  - service.yaml
+  - pvc.yaml
+  - configmap.yaml
+  - route.yaml

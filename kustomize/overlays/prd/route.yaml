@@ -1,0 +1,6 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: nodejs-api
+spec:
+  host: nodejs-api-workshop-prd.127.0.0.1.nip.io

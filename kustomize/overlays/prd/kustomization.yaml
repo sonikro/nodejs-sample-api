@@ -1,0 +1,11 @@
+resources:
+  - ../../base
+
+patchesStrategicMerge:
+  - configmap.yaml
+  - route.yaml
+
+images:
+- name: 172.30.1.1:5000/workshop-sit/nodejs-api
+  newName: 172.30.1.1:5000/workshop-prd/nodejs-api
+  newTag: 1.1.0

@@ -1,0 +1,52 @@
+metadata:
+  name: trilha-devops
+projects:
+  - name: nodejs-api
+    source:
+      location: 'https://github.com/sonikro/nodejs-sample-api.git'
+      type: git
+      branch: master
+components:
+  - id: che-incubator/typescript/latest
+    memoryLimit: 512Mi
+    type: chePlugin
+  - mountSources: true
+    endpoints:
+      - name: nodejs
+        port: 3000
+    memoryLimit: 512Mi
+    type: dockerimage
+    alias: nodejs
+    image: 'registry.redhat.io/codeready-workspaces/stacks-node-rhel8:2.0'
+apiVersion: 1.0.0
+commands:
+  - name: download dependencies
+    actions:
+      - workdir: '${CHE_PROJECTS_ROOT}/nodejs-sample-api'
+        type: exec
+        command: npm install
+        component: nodejs
+  - name: run the web app
+    actions:
+      - workdir: '${CHE_PROJECTS_ROOT}/nodejs-sample-api'
+        type: exec
+        command: npm start
+        component: nodejs
+  - name: Attach remote debugger
+    actions:
+      - referenceContent: |
+          {
+            "version": "0.2.0",
+            "configurations": [
+              {
+                "type": "node",
+                "request": "attach",
+                "name": "Attach to Remote",
+                "address": "localhost",
+                "port": 9229,
+                "localRoot": "${workspaceFolder}",
+                "remoteRoot": "${workspaceFolder}"
+              }
+            ]
+          }
+        type: vscode-launch
