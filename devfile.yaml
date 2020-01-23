@@ -23,6 +23,9 @@ components:
       - name: jenkins
         port: 8080
     memoryLimit: 1024Mi
+    volumes:
+      - name: jenkins_home
+        containerPath: /var/jenkins_home
     type: dockerimage
     alias: jenkins
     image: 'sonikro/jenkins-codeready-workspace:lts'
