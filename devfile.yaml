@@ -18,6 +18,14 @@ components:
     type: dockerimage
     alias: nodejs
     image: 'registry.redhat.io/codeready-workspaces/stacks-node-rhel8:2.0'
+  - mountSources: false
+    endpoints:
+      - name: jenkins
+        port: 8080
+    memoryLimit: 1024Mi
+    type: dockerimage
+    alias: jenkins
+    image: 'sonikro/jenkins-codeready-workspace:lts'
 apiVersion: 1.0.0
 commands:
   - name: download dependencies
