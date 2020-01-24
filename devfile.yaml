@@ -18,9 +18,93 @@ components:
     type: dockerimage
     alias: nodejs
     image: 'registry.redhat.io/codeready-workspaces/stacks-node-rhel8:2.0'
-  - type: kubernetes
+  - type: openshift
     alias: jenkins
-    reference: crw/jenkins.yaml
+    referenceContent: |
+      apiVersion: v1
+      items:
+      - apiVersion: v1
+        kind: Pod
+        metadata:
+          labels:
+            app: jenkins
+          name: jenkins
+        spec:
+          containers:
+          - image: sonikro/jenkins-codeready-workspace:latest
+            imagePullPolicy: Always
+            name: jenkins
+            ports:
+            - containerPort: 8080
+              protocol: TCP
+            - containerPort: 50000
+              protocol: TCP
+            resources: {}
+            terminationMessagePath: /dev/termination-log
+            terminationMessagePolicy: File
+            volumeMounts:
+            - mountPath: /var/jenkins_home
+              name: jenkins-codeready-workspace
+            - mountPath: /var/run/docker.sock
+              name: socket
+          dnsPolicy: ClusterFirst
+          imagePullSecrets:
+          - name: default-dockercfg-r7kmd
+          nodeName: localhost
+          priority: 0
+          restartPolicy: Always
+          schedulerName: default-scheduler
+          securityContext: {}
+          serviceAccount: default
+          serviceAccountName: default
+          terminationGracePeriodSeconds: 30
+          volumes:
+          - emptyDir: {}
+            name: jenkins-codeready-workspace
+          - hostPath:
+              path: /var/run/docker.sock
+              type: ""
+            name: socket
+      - apiVersion: v1
+        kind: Service
+        metadata:
+          labels:
+            app: jenkins
+          name: jenkins
+        spec:
+          ports:
+          - name: 8080-tcp
+            port: 8080
+            protocol: TCP
+            targetPort: 8080
+          - name: 50000-tcp
+            port: 50000
+            protocol: TCP
+            targetPort: 50000
+          selector:
+            app: jenkins
+          sessionAffinity: None
+          type: ClusterIP
+      - apiVersion: route.openshift.io/v1
+        kind: Route
+        metadata:
+          labels:
+            app: jenkins
+          name: jenkins
+        spec:
+          host: jenkins.openshift.sonikro.com
+          port:
+            targetPort: 8080-tcp
+          to:
+            kind: Service
+            name: jenkins
+            weight: 100
+          wildcardPolicy: None
+      kind: List
+      metadata:
+        resourceVersion: ""
+        selfLink: ""
+
 apiVersion: 1.0.0
 commands:
   - name: download dependencies
